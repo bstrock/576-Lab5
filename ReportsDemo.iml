@@ -52,15 +52,6 @@
     <orderEntry type="module-library">
       <library>
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/lib/postgis-jdbc-2.5.0.jar!/" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES />
-      </library>
-    </orderEntry>
-    <orderEntry type="module-library">
-      <library>
-        <CLASSES>
           <root url="jar://$MODULE_DIR$/lib/postgresql-42.2.23.jar!/" />
         </CLASSES>
         <JAVADOC />
@@ -98,6 +89,15 @@
       <library>
         <CLASSES>
           <root url="jar://$MODULE_DIR$/lib/apache-tomcat-9.0.50/lib/tomcat-api.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/postgis-1.5.2.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />

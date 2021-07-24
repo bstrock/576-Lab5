@@ -2,23 +2,27 @@ package com.example.ReportsDemo;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
+import java.util.logging.Logger;
+import org.postgis.Geometry;
+import org.postgis.PGgeometry;
+import org.postgresql.util.PGobject;
 
 public class DBUtility {
 
     public static String url = makeURL(
-            "postgresql",
+            "postgresql_postGIS",
             "localhost",
             "brianstrock",
             5432
     );
+
+    // PARAMETER MAP CUTOFF VALUES DECLARED HERE
+    public static final int USER_CUTOFF = 8; // attributes 1-8 are user table attributes
+    public static final int REPORT_CUTOFF = 13; // 8-12 are report attributes
 
     public static void main(String[] args) throws SQLException, IOException {
         /*
@@ -43,14 +47,16 @@ public class DBUtility {
         */
     }
 
-    public static Connection connect(String url, HttpServletRequest request) throws SQLException, IOException {
+    public static Connection connect(String url, HttpServletRequest request) throws SQLException, IOException, ClassNotFoundException {
 
         try {
+            Class.forName("org.postgis.DriverWrapper");
             ServletContext context = request.getServletContext();
             InputStream in = context.getResourceAsStream("/WEB-INF/db.properties");
 
             Properties connProps = new Properties();  // initialize object for user/pass
             connProps.load(in);
+
             return DriverManager.getConnection(url, connProps);
 
         }
@@ -83,29 +89,40 @@ public class DBUtility {
         }
     }
 
-    public static ArrayList<HashMap<String, String[]>> requestParamsToArrayList(HttpServletRequest request) {
+    public static ArrayList<LinkedHashMap<String, String>> requestParamsToArrayList(HttpServletRequest request) {
+        // this function sorts request parameters into an arraylist of LinkedHashMaps
 
-        Map<String, String[]> params = request.getParameterMap();
+        ServletContext context = request.getServletContext(); // use this for logging
 
-        HashMap<String, String[]> userTable = new HashMap<>();
-        HashMap<String, String[]> reportTable = new HashMap<>();
-        HashMap<String, String[]> subReportTable = new HashMap<>();
+        Enumeration<String> keys = request.getParameterNames();
 
-        ArrayList<HashMap<String, String[]>> insertAttributes = new ArrayList<>();
+        LinkedHashMap<String, String> userTable = new LinkedHashMap<>();  // where we store the user table key-values
+        LinkedHashMap<String, String> reportTable = new LinkedHashMap<>();  // where we store the report table key-values
+        LinkedHashMap<String, String> subReportTable = new LinkedHashMap<>();  // where we store the sub-report key-values
 
-        String[] keys = (String[]) params.keySet().toArray();
-        for (int i = 1; i < keys.length; i++) {
-            String key = keys[i];
-            String[] val = params.get(key);
-            if (i < 9) {
-                userTable.put(key, val);
-            } else if (i < 13) {
-                reportTable.put(key, val);
-            } else {
-                subReportTable.put(key, val);
+        ArrayList<LinkedHashMap<String, String>> insertAttributes = new ArrayList<>();  // THIS IS RETURNED
+
+        // loop through keys, get attribute values, use cutoffs to place them in the correct LinkedHashMap
+        int i = 0;  // starting counter value
+
+        while (keys.hasMoreElements()) {
+            String key = keys.nextElement();
+            if (i != 0) {
+                String val = request.getParameter(key);
+
+                context.log(String.format("i = %d, key = %s, val = %s", i, key, val));
+                if (i < USER_CUTOFF) {  // goes in the user table map
+                    userTable.put(key, val);
+                } else if (i < REPORT_CUTOFF) { // only triggers if i > user_cutoff
+                    reportTable.put(key, val);
+                } else {
+                    subReportTable.put(key, val); // only triggers if i > report_cutoff
+                }
             }
+            i ++; // first parameter is tab_id, so we skip that
         }
 
+        // pack the sorted LinkedHashMaps into the container and return
         insertAttributes.add(userTable);
         insertAttributes.add(reportTable);
         insertAttributes.add(subReportTable);
@@ -113,38 +130,49 @@ public class DBUtility {
         return insertAttributes;
     }
 
-    public static PreparedStatement insertParams(HashMap<String, String[]> tableAttributes, PreparedStatement raw) throws SQLException {
+    public static PreparedStatement insertParams(LinkedHashMap<String, String> tableAttributes, PreparedStatement raw, int locationMode) throws SQLException {
+        // this function packs the supplied key-value pairs into the supplied prepared statement
+        // the statement can now be executed!
+        Logger log = Logger.getLogger("Reports");
+
+        int counter = 1;
+
+        if (locationMode == 1) {
+            String[] coords = new String[2];
+            coords[0] = tableAttributes.get("longitude");
+            coords[1] = tableAttributes.get("latitude");
+            String geomString = String.format("POINT %s %s", coords[0], coords[1]);
+            Geometry geom = PGgeometry.geomFromString(geomString);
+            raw.setObject(counter, new PGgeometry(geom));
+            tableAttributes.remove("latitude");
+            tableAttributes.remove("longitude");
+            counter++;
+        }
 
         for (String key : tableAttributes.keySet()) {
-
-            int counter = 1;
-
-            Object fieldInput = tableAttributes.get(key);
+            String fieldInput = tableAttributes.get(key);
+            log.info(counter + " " + fieldInput);
             try {
-                int isInt = Integer.parseInt((String) fieldInput);
+                int isInt = Integer.parseInt((String.valueOf(fieldInput)));
                 raw.setInt(counter, isInt);
             } catch (NumberFormatException nfe) {
-                try {
-                    Timestamp timestamp = Timestamp.valueOf((String) fieldInput);
-                    raw.setTimestamp(counter, timestamp);
-                } catch (SQLException e) {
-                    raw.setString(counter, (String) fieldInput);
-                }
+                raw.setString(counter, fieldInput);
             }
-
+            counter++;
         }
+
         return raw;
     }
 
-    public static void createReport(HttpServletRequest request) throws SQLException, IOException {
+    public static void createReport(HttpServletRequest request) throws SQLException, IOException, ClassNotFoundException {
         ServletContext context = request.getServletContext();
 
         context.log("INITIATING DB CONNECTION");
         Connection conn = DBUtility.connect(DBUtility.url, request);
         context.log("DB CONNECTION SUCCESSFUL");
-
+        ((org.postgresql.PGConnection)conn).addDataType("geometry", (Class<? extends PGobject>) Class.forName("org.postgis.PGgeometry"));
         context.log("UNPACKING PARAMETERS");
-        ArrayList<HashMap<String, String[]>> params = requestParamsToArrayList(request);
+        ArrayList<LinkedHashMap<String, String>> params = requestParamsToArrayList(request);
         context.log("PARAMETERS UNPACK SUCCESSFUL");
 
         context.log("RETRIEVING RAW SQL");
@@ -157,23 +185,43 @@ public class DBUtility {
         PreparedStatement rawReport = conn.prepareStatement(makeReport);
         context.log("PREPARED STATEMENTS CREATED");
         context.log("ADDING PARAMETERS TO STATEMENTS");
-        PreparedStatement userSQL = insertParams(params.get(0), rawUser);
-        PreparedStatement reportSQL = insertParams(params.get(1), rawReport);
+        PreparedStatement userSQL = insertParams(params.get(0), rawUser, 0);
+        PreparedStatement reportSQL = insertParams(params.get(1), rawReport, 1);
         context.log("STATEMENT PARAMETERS ADDED");
+        String email = params.get(0).get("email");
+        context.log("EMAIL: " + email);
+        PreparedStatement getUserID = conn.prepareStatement(Statements.getUser);
+        getUserID.setString(1, params.get(0).get("email"));  // doesnt get the email
+        int userID = 0;
+        context.log(getUserID.toString());
 
         context.log("PREPARING EXECUTION");
         ArrayList<PreparedStatement> statements = new ArrayList<>();
         statements.add(userSQL);
+        statements.add(getUserID);
         statements.add(reportSQL);
 
         try {
-            for (PreparedStatement s : statements) {
-                context.log("STATEMENT EXECUTED");
-                s.executeUpdate();
-                s.close();
-            }
+                userSQL.executeUpdate();
+                ResultSet res = getUserID.executeQuery();
+
+            context.log(String.valueOf(userID));
+                if (res.next()) {
+                    userID = res.getInt("id");
+                }
+                reportSQL.setInt(5, userID);
+                context.log(reportSQL.toString());
+                reportSQL.executeUpdate();
+
+                for (PreparedStatement s : statements) {
+                    s.close();
+                }
+
+                context.log("EXECUTION SUCCESSFUL");
+
         } catch (SQLException e) {
             context.log("STATEMENT EXECUTION FAILURE");
+            context.log(e.toString());
             e.printStackTrace();
         } finally {
             conn.close();
@@ -185,7 +233,7 @@ public class DBUtility {
                                  String db,
                                  int port){
 
-        return String.format("jdbc:%s://%s:%d/%s", driver, host, port, db);
+        return String.format("jdbc:%s://%s:%d/%s?stringtype=unspecified", driver, host, port, db);
     }
 
 } // ends main class

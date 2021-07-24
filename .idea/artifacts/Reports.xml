@@ -8,10 +8,9 @@
         </element>
         <element id="directory" name="lib">
           <element id="file-copy" path="$PROJECT_DIR$/lib/java-json.jar" />
-          <element id="file-copy" path="$PROJECT_DIR$/lib/postgis-jdbc-2.5.0.jar" />
           <element id="file-copy" path="$PROJECT_DIR$/lib/postgresql-42.2.23.jar" />
-          <element id="file-copy" path="$PROJECT_DIR$/lib/log4j-api-2.14.1.jar" />
           <element id="file-copy" path="$PROJECT_DIR$/lib/apache-tomcat-9.0.50/lib/tomcat-api.jar" />
+          <element id="file-copy" path="$PROJECT_DIR$/lib/postgis-1.5.2.jar" />
         </element>
       </element>
       <element id="javaee-facet-resources" facet="ReportsDemo/web/Web" />

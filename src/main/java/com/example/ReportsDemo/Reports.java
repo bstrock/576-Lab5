@@ -5,7 +5,6 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.*;
 import java.io.IOException;
 
-import java.io.PrintWriter;
 import java.sql.*;
 import java.util.Enumeration;
 import java.util.logging.*;
@@ -53,11 +52,11 @@ public class Reports extends HttpServlet {
 
         String tab_id = request.getParameter("tab_id");
         int type = Integer.parseInt(tab_id);
-        Enumeration params = request.getParameterNames();
+        Enumeration<String> params = request.getParameterNames();
 
         if (params.hasMoreElements()){
             while (params.hasMoreElements()){
-            String param = (String) params.nextElement();
+            String param = params.nextElement();
             context.log(param);
             }
         } else {
@@ -73,7 +72,7 @@ public class Reports extends HttpServlet {
                 DBUtility.createReport(request);
                 confirmSuccess(response);
 
-            } catch (SQLException e) {
+            } catch (SQLException | ClassNotFoundException e) {
                 e.printStackTrace();
             }
         } else if (tab_id.equals("1")) {

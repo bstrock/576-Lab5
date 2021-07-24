@@ -26,11 +26,11 @@
             age: "30",
             telephone: "928-777-8856",
             blood_type: "AB",
-            message: "request rescue!!!",
             longitude: "-87",
             latitude: "33",
-            report_type: "request",
-            disaster_type: "wildfire"
+            message: "request rescue!!!",
+            report_type: "REQUEST",
+            disaster_type: "WILDFIRE"
         }
 
         $.ajax({
