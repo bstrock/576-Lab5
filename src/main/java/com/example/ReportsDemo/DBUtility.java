@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.sql.*;
 import java.util.*;
-import java.util.logging.Logger;
 
 import org.postgis.Geometry;
 import org.postgis.PGgeometry;
@@ -22,35 +21,12 @@ public class DBUtility {
             5432
     );
 
-    // these are readability variables used to set cutoffs for enumeration lengths, etc.
+    // these are readability variables used to set cutoffs for enumeration lengths and other magic values
 
     public static final int USER_CUTOFF = 8; // attributes 1-8 are user table attributes
     public static final int REPORT_CUTOFF = 13; // 9-13 are report attributes
     public static final int CONTACT_CUTOFF = 14;
-    public static final int HAS_EMERGENCY_CONTACT = 3;
-
-    public static void main(String[] args) throws SQLException, IOException {
-        /*
-        // build url
-
-        // initiate connection
-        Connection conn = DBUtility.connect(DBUtility.url);
-
-        // build query
-        String query = "SELECT id, report_type, disaster_type, timestamp, ST_AsText(geom) as geom FROM report";
-
-        // prepare statement
-        PreparedStatement statement = conn.prepareStatement(query);
-
-        // execute statement & print report
-        ResultSet res = statement.executeQuery();
-        printReports(res);
-
-        // clean up
-        statement.close();
-        conn.close();
-        */
-    }
+    public static final int HAS_EMERGENCY_CONTACT = 4;
 
     public static Connection connect(String url, HttpServletRequest request) throws SQLException, IOException, ClassNotFoundException {
         // this function gets you a url to connect to
@@ -59,7 +35,7 @@ public class DBUtility {
             ServletContext context = request.getServletContext();  // we use this for logging
             InputStream in = context.getResourceAsStream("/WEB-INF/db.properties");  // load database password, etc.
 
-            Properties connProps = new Properties();  // initialize object for user/pass
+            final Properties connProps = new Properties();  // initialize object for user/pass
             connProps.load(in);  // load user/pass from properties input stream
 
             return DriverManager.getConnection(url, connProps);
@@ -97,8 +73,7 @@ public class DBUtility {
     public static ArrayList<LinkedHashMap<String, String>> requestParamsToArrayList(HttpServletRequest request) {
         // this function sorts request parameters into an arraylist of LinkedHashMaps
 
-        ServletContext context = request.getServletContext(); // use this for logging
-
+        ServletContext context = request.getServletContext();
         Enumeration<String> keys = request.getParameterNames();  // name of our parameters will be keys in the...
 
         // LINKEDHASHMAPS FOR ATTRIBUTE STORAGE
@@ -120,12 +95,17 @@ public class DBUtility {
 
                 if (i < USER_CUTOFF) {  // goes in the user table map
                     userTable.put(key, val);
+                    context.log(key + val);
                 } else if (i < REPORT_CUTOFF) { // only triggers if i > user_cutoff
                     reportTable.put(key, val);
+                    context.log(key + val);
                 } else if (i < CONTACT_CUTOFF) {
                     subReportTable.put(key, val); // only triggers if i < contact_cutoff
+                    context.log(key + val);
                 } else {
                     emergencyContact.put(key.replace("c_", ""), val); // this must be emergency contact
+                    context.log(key + val);
+
                 }
             }
             i++; // increments i = 0 in order to skip tab_id
@@ -135,7 +115,12 @@ public class DBUtility {
         insertAttributes.add(userTable);
         insertAttributes.add(reportTable);
         insertAttributes.add(subReportTable);
-        insertAttributes.add(emergencyContact);
+
+        if (i > CONTACT_CUTOFF) {
+            insertAttributes.add(emergencyContact);
+        }
+
+
 
         return insertAttributes;
     }
@@ -143,8 +128,6 @@ public class DBUtility {
     public static PreparedStatement insertParams(LinkedHashMap<String, String> tableAttributes, PreparedStatement raw, int locationMode) throws SQLException {
         // this function packs the supplied key-value pairs into the supplied prepared statement
         // the statement can then be executed
-
-        Logger log = Logger.getLogger("Reports");
 
         int counter = 1;
 
@@ -221,12 +204,13 @@ public class DBUtility {
 
         // we check if the data package contains an emergency contact id
         // we also check if the contact user already exist in the database, so that we don't violate unique constraints
-
-        if (params.size() > HAS_EMERGENCY_CONTACT) {  // this protocol engaged when emergency contact is specified
+        context.log(" ******* SIZE: " + String.valueOf(params.size()));
+        if (params.size() == HAS_EMERGENCY_CONTACT) {  // this protocol engaged when emergency contact is specified
             context.log("EMERGENCY CONTACT DETECTED");
             String contactEmail = params.get(3).get("email");  // the emergency contact email
             PreparedStatement getContactID = conn.prepareStatement(Statements.get("fetchUser")); // prepare statement
             getContactID.setString(1, contactEmail);  // insert email in query string
+            context.log(getContactID.toString());
             statements.add(getContactID);  // we'll use this list later
             try {
                 ResultSet res = getContactID.executeQuery();  // check for emergency contact in db
@@ -306,15 +290,17 @@ public class DBUtility {
             // we're going to handle the sub-report type (linked tables for disaster_report, etc.)
             context.log("CREATING SUB-REPORT");
             String type = params.get(1).get("report_type");  // get the report type
+            context.log("type " + type);
             String reportTypeTableName = type.toLowerCase() + "_report";  // set the DB tablename for this report type
 
             String typeColumn;  // we'll use this later
 
             // request report types have a different column name value, so we substitute here
-            if (type.equals("REQUEST")) {
+            if (type.equals("REQUEST") || type.equals("DONATION")) {
                 typeColumn = "resource_type";
             } else {  // otherwise, type + _type = name of column
-                typeColumn = type + "_type";
+                typeColumn = type.toLowerCase() + "_type";
+                context.log("type " + typeColumn);
             }
 
             // we're going to initialize another SQL statement, but there's a problem...
@@ -327,8 +313,11 @@ public class DBUtility {
             String rawReportType = String.format(Statements.get("makeReportType"), // this is the raw SQL
                     reportTypeTableName, // this is the tabletype parameter
                     typeColumn); // this is the sub-report column name
-
+            context.log(typeColumn);
             String typeValue = params.get(2).get(typeColumn); // get the type for this report
+            context.log(params.get(2).keySet().toString());
+            context.log(params.get(2).values().toString());
+            context.log("typeValue " + typeValue);
             PreparedStatement reportTypeSQL = conn.prepareStatement(rawReportType);  // prepare report type statement
             reportTypeSQL.setInt(1, reportID);  // insert report ID value
             reportTypeSQL.setString(2, typeValue);  // insert type column value
@@ -365,4 +354,5 @@ public class DBUtility {
 
     public static void queryReport(HttpServletRequest request, HttpServletResponse response) {
     }
+
 } // fin

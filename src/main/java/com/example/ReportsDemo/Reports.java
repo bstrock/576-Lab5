@@ -65,7 +65,7 @@ public class Reports extends HttpServlet {
                 context.log("ATTEMPTING TO SERVICE REQUEST");
                 DBUtility.createReport(request);
                 confirmSuccess(response);
-                context.log("ATTEMPTING TO REQUEST SERVICE SUCCESSFUL");
+                context.log("ATTEMPTING TO SERVICE REQUEST SUCCESSFUL");
 
             } catch (SQLException | ClassNotFoundException e) {
                 e.printStackTrace();
