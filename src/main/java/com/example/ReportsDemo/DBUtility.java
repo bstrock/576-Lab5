@@ -21,7 +21,7 @@ public class DBUtility {
             5432
     );
 
-    // these are readability variables used to set cutoffs for enumeration lengths and other magic values
+    // these are readability variables used to set cutoffs for enumeration lengths and other magic numbers/sentinels
 
     public static final int USER_CUTOFF = 8; // attributes 1-8 are user table attributes
     public static final int REPORT_CUTOFF = 13; // 9-13 are report attributes
@@ -116,6 +116,7 @@ public class DBUtility {
         insertAttributes.add(reportTable);
         insertAttributes.add(subReportTable);
 
+        // the length of insertAttributes informs a sentinel value later, so we only add the final hashmap if emergency contact is set
         if (i > CONTACT_CUTOFF) {
             insertAttributes.add(emergencyContact);
         }
@@ -204,7 +205,7 @@ public class DBUtility {
 
         // we check if the data package contains an emergency contact id
         // we also check if the contact user already exist in the database, so that we don't violate unique constraints
-        context.log(" ******* SIZE: " + String.valueOf(params.size()));
+
         if (params.size() == HAS_EMERGENCY_CONTACT) {  // this protocol engaged when emergency contact is specified
             context.log("EMERGENCY CONTACT DETECTED");
             String contactEmail = params.get(3).get("email");  // the emergency contact email
