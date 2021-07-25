@@ -92,7 +92,6 @@ public class Reports extends HttpServlet {
 
     public static void main(String[] args){
 
-        System.out.println("FUCK");
     }
 }
 

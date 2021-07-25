@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.sql.*;
 import java.util.*;
 import java.util.logging.Logger;
+
 import org.postgis.Geometry;
 import org.postgis.PGgeometry;
 import org.postgresql.util.PGobject;
@@ -22,7 +23,8 @@ public class DBUtility {
 
     // PARAMETER MAP CUTOFF VALUES DECLARED HERE
     public static final int USER_CUTOFF = 8; // attributes 1-8 are user table attributes
-    public static final int REPORT_CUTOFF = 13; // 8-12 are report attributes
+    public static final int REPORT_CUTOFF = 13; // 9-13 are report attributes
+    public static final int CONTACT_CUTOFF = 14;
 
     public static void main(String[] args) throws SQLException, IOException {
         /*
@@ -59,8 +61,7 @@ public class DBUtility {
 
             return DriverManager.getConnection(url, connProps);
 
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
             throw e;
         }
@@ -69,8 +70,8 @@ public class DBUtility {
 
     protected static void printReports(ResultSet res) throws SQLException {
 
-        if (res !=null) {
-            while (res.next()){
+        if (res != null) {
+            while (res.next()) {
 
                 int id = res.getInt("id");
                 String reportType = res.getString("report_type");
@@ -99,6 +100,7 @@ public class DBUtility {
         LinkedHashMap<String, String> userTable = new LinkedHashMap<>();  // where we store the user table key-values
         LinkedHashMap<String, String> reportTable = new LinkedHashMap<>();  // where we store the report table key-values
         LinkedHashMap<String, String> subReportTable = new LinkedHashMap<>();  // where we store the sub-report key-values
+        LinkedHashMap<String, String> emergencyContact = new LinkedHashMap<>();
 
         ArrayList<LinkedHashMap<String, String>> insertAttributes = new ArrayList<>();  // THIS IS RETURNED
 
@@ -115,17 +117,20 @@ public class DBUtility {
                     userTable.put(key, val);
                 } else if (i < REPORT_CUTOFF) { // only triggers if i > user_cutoff
                     reportTable.put(key, val);
-                } else {
+                } else if (i < CONTACT_CUTOFF){
                     subReportTable.put(key, val); // only triggers if i > report_cutoff
+                } else {
+                    emergencyContact.put(key.replace("c_", ""), val);
                 }
             }
-            i ++; // first parameter is tab_id, so we skip that
+            i++; // first parameter is tab_id, so we skip that
         }
 
         // pack the sorted LinkedHashMaps into the container and return
         insertAttributes.add(userTable);
         insertAttributes.add(reportTable);
         insertAttributes.add(subReportTable);
+        insertAttributes.add(emergencyContact);
 
         return insertAttributes;
     }
@@ -166,72 +171,149 @@ public class DBUtility {
 
     public static void createReport(HttpServletRequest request) throws SQLException, IOException, ClassNotFoundException {
         ServletContext context = request.getServletContext();
+        int userID = 0, reportID = 0, contactID = 0; // initialize
 
         context.log("INITIATING DB CONNECTION");
         Connection conn = DBUtility.connect(DBUtility.url, request);
         context.log("DB CONNECTION SUCCESSFUL");
-        ((org.postgresql.PGConnection)conn).addDataType("geometry", (Class<? extends PGobject>) Class.forName("org.postgis.PGgeometry"));
+        ((org.postgresql.PGConnection) conn).addDataType("geometry", (Class<? extends PGobject>) Class.forName("org.postgis.PGgeometry"));
         context.log("UNPACKING PARAMETERS");
         ArrayList<LinkedHashMap<String, String>> params = requestParamsToArrayList(request);
         context.log("PARAMETERS UNPACK SUCCESSFUL");
 
-        context.log("RETRIEVING RAW SQL");
-        String makeUser = Statements.makeUser;
-        String makeReport = Statements.makeReport;
-        context.log("SQL RETREIVE SUCCESSFUL");
-
         context.log("PREPARING STATEMENTS");
-        PreparedStatement rawUser = conn.prepareStatement(makeUser);
-        PreparedStatement rawReport = conn.prepareStatement(makeReport);
+        PreparedStatement rawUser = conn.prepareStatement(Statements.makeUser);
+        PreparedStatement rawReport = conn.prepareStatement(Statements.makeReport);
+
+        String email = params.get(0).get("email");
+        PreparedStatement getUserID = conn.prepareStatement(Statements.getUser);
+        getUserID.setString(1, email);
+
         context.log("PREPARED STATEMENTS CREATED");
         context.log("ADDING PARAMETERS TO STATEMENTS");
         PreparedStatement userSQL = insertParams(params.get(0), rawUser, 0);
         PreparedStatement reportSQL = insertParams(params.get(1), rawReport, 1);
+
+        if (params.size() > 3){  // emergency contact is specified
+
+            String contactEmail = params.get(3).get("email");  // the emergency contact email
+
+            PreparedStatement getContactID = conn.prepareStatement(Statements.getUser); // prepare statement
+            getContactID.setString(1, contactEmail);  // insert email in query string
+            try {
+                ResultSet res = getContactID.executeQuery();  // check for emergency contact in db
+                if (res.next()) {  // if there's a result
+                    contactID = res.getInt("id");  // get the ID and save
+                    context.log(String.valueOf(contactID));
+                    res.close();  // close resultset
+                } else {  // if this is a new contact
+                    String rawContact = Statements.makeContact;  // summon create emergency contact SQL
+                    PreparedStatement makeContact = conn.prepareStatement(rawContact);  // prepare statement
+                    PreparedStatement contactSQL = insertParams(params.get(3), makeContact, 0);  // insert values
+                    contactSQL.executeUpdate();  // execute emergency contact creation
+                    res = getContactID.executeQuery();  // retrieve contact ID we just created
+                    if (res.next()) {  // if it was found
+                        contactID = res.getInt("id"); // set contactID
+                        res.close();
+                    }
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+                throw e;
+            }
+
+        }
         context.log("STATEMENT PARAMETERS ADDED");
-        String email = params.get(0).get("email");
-        context.log("EMAIL: " + email);
-        PreparedStatement getUserID = conn.prepareStatement(Statements.getUser);
-        getUserID.setString(1, params.get(0).get("email"));  // doesnt get the email
-        int userID = 0;
-        context.log(getUserID.toString());
+
+        PreparedStatement getReportID = conn.prepareStatement(Statements.getReport);  // prepare get report ID
 
         context.log("PREPARING EXECUTION");
+        // add statements to list for future operations
         ArrayList<PreparedStatement> statements = new ArrayList<>();
         statements.add(userSQL);
         statements.add(getUserID);
         statements.add(reportSQL);
+        statements.add(getReportID);
 
+        // CREATE REPORT EXECUTION BLOCK
         try {
-                userSQL.executeUpdate();
-                ResultSet res = getUserID.executeQuery();
+            ResultSet res = getUserID.executeQuery();  // check if user exists
 
-            context.log(String.valueOf(userID));
-                if (res.next()) {
-                    userID = res.getInt("id");
+            if (res.next()) {  // if it does
+                userID = res.getInt("id");  // set the userID
+                res.close();
+            } else {  // if it doesn't
+                if (contactID != 0){  // if we found an emergency contact previously
+                    userSQL.setInt(8, contactID);  // set the emergency contactID
+                } else {  // if we didn't find a contact ID
+                    userSQL.setNull(8, Types.NULL); // set it to NULL
                 }
-                reportSQL.setInt(5, userID);
-                context.log(reportSQL.toString());
-                reportSQL.executeUpdate();
-
-                for (PreparedStatement s : statements) {
-                    s.close();
+                userSQL.executeUpdate(); // execute create user statement
+                res = getUserID.executeQuery();  // get the user ID we just created
+                if (res.next()) {  // if we found it
+                    userID = res.getInt("id");  // set userID
+                    res.close();
                 }
+            }
 
-                context.log("EXECUTION SUCCESSFUL");
+            reportSQL.setInt(5, userID);  // set the userID in the report
+
+            reportSQL.executeUpdate();  // execute create report statement
+
+            getReportID.setInt(1, userID);  // specify user ID in order to get reportID
+            res = getReportID.executeQuery();  // get the reportID we just created
+
+            if (res.next()) {  // if we found it
+                reportID = res.getInt("id");  // set the reportID
+                res.close();
+            }
+
+            // SUB-REPORT TYPE HANDLING
+            String type = params.get(1).get("report_type");  // get the report type
+            String reportTypeTableName = type.toLowerCase() + "_report";  // DB tablename for this report type
+
+            String typeColumn;  // we'll use this later
+
+            // request report types have a different column name value, so we substitute here
+            if (type.equals("REQUEST")){
+                typeColumn = "resource_type";
+            } else {  // otherwise, type + _type = name of column
+                typeColumn = type + "_type";
+            }
+
+            // PreparedStatements wrap inserted values with '', which causes tablenames and such to fail...
+            // thus, we use string.format to insert tablenames (these values are not supplied by the user)
+            String rawReportType = String.format(Statements.makeReportType, reportTypeTableName, typeColumn);
+
+            String typeValue = params.get(2).get(typeColumn); // get the type for this report
+
+            PreparedStatement reportTypeSQL = conn.prepareStatement(rawReportType);  // prepare report type statement
+            reportTypeSQL.setInt(1, reportID);  // insert report ID value
+            reportTypeSQL.setString(2, typeValue);  // insert type column value
+
+            reportTypeSQL.executeUpdate();  // execute the statement
+            statements.add(reportTypeSQL);  // add it to the statements list
+
+            for (PreparedStatement s : statements) {  // close all of the statements
+                s.close();
+            }
+
+            context.log("EXECUTION SUCCESSFUL");  // boom
 
         } catch (SQLException e) {
-            context.log("STATEMENT EXECUTION FAILURE");
+            context.log("STATEMENT EXECUTION FAILURE");  //  aahhhhh!
             context.log(e.toString());
             e.printStackTrace();
+            throw e;
         } finally {
-            conn.close();
+            conn.close();  // close the connection regardless of success or the db will cry
         }
     }
 
     public static String makeURL(String driver,
                                  String host,
                                  String db,
-                                 int port){
+                                 int port) {
 
         return String.format("jdbc:%s://%s:%d/%s?stringtype=unspecified", driver, host, port, db);
     }

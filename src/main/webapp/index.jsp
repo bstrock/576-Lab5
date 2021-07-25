@@ -22,7 +22,7 @@
             first_name: "Jason",
             last_name: "Zhou",
             gender: "wolfkin",
-            email: "jasonzhou@gmail.com",
+            email: "jasonzhou3@gmail.com",
             age: "30",
             telephone: "928-777-8856",
             blood_type: "AB",
@@ -30,7 +30,12 @@
             latitude: "33",
             message: "request rescue!!!",
             report_type: "REQUEST",
-            disaster_type: "WILDFIRE"
+            disaster_type: "WILDFIRE",
+            resource_type: "RESCUE/VOLUNTEER",
+            c_first_name: "Emergency",
+            c_last_name: "Contact",
+            c_email: "emergency3@contact.com",
+            c_telephone: "555-555-1234"
         }
 
         $.ajax({
