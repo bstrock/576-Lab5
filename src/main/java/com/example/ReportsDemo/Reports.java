@@ -6,52 +6,45 @@ import javax.servlet.http.*;
 import java.io.IOException;
 
 import java.sql.*;
-import java.util.Enumeration;
-import java.util.logging.*;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
-@WebServlet(name="Reports", urlPatterns = "/Reports")
+@WebServlet(name = "Reports", urlPatterns = "/Reports")
 public class Reports extends HttpServlet {
 
-// use any string you want
     private static final long serialVersionUID = 1L;
+
     public Reports() {
         super();
     }
 
     @Override
     public void init() throws ServletException {
-    ServletContext context = getServletContext();
-    Logger logger = Logger.getLogger("Reports");
-    logger.log(Level.INFO, "LOG INIT");
-    log("LOG LOG INIT");
-    context.log("CONTEXT INIT");
-    System.out.println(("SYS INIT"));
+        ServletContext context = getServletContext();
+        context.log("SERVLET INIT");
     }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        Logger logger = Logger.getLogger("Reports");
-        logger.log(Level.INFO, "LOG LOG GET");
-
         ServletContext context = getServletContext();
-        context.log("CONTEXT LOG GET");
-
+        context.log("GET REQUEST RECEIVED");
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
 
         ServletContext context = getServletContext();
-        context.log("PING");
+        context.log("POST REQUEST RECEIVED");
 
         response.setContentType("text/html");
         response.setCharacterEncoding("UTF-8");
 
         String tab_id = request.getParameter("tab_id");
         int type = Integer.parseInt(tab_id);
+
+        /* TEST CODE BLOCK
+            UNCOMMENT FOR ADDTIONAL LOGGING
         Enumeration<String> params = request.getParameterNames();
 
         if (params.hasMoreElements()){
@@ -64,23 +57,29 @@ public class Reports extends HttpServlet {
         }
 
         System.out.println("tab_id: " + tab_id);
+        END TEST CODE BLOCK*/
 
         if (type == 0) {
             context.log("REPORT SUBMITTED");
-
             try {
+                context.log("ATTEMPTING TO SERVICE REQUEST");
                 DBUtility.createReport(request);
                 confirmSuccess(response);
+                context.log("ATTEMPTING TO REQUEST SERVICE SUCCESSFUL");
 
             } catch (SQLException | ClassNotFoundException e) {
                 e.printStackTrace();
+                context.log("REQUEST SERVICE FAILED");
             }
         } else if (tab_id.equals("1")) {
-            //queryReport(request, response);
+            context.log("QUERY SUBMITTED");
+            DBUtility.queryReport(request, response);  // TODO: MAKE THIS, WRAP IN TRY/CATCH
         }
     }
 
     protected void confirmSuccess(HttpServletResponse response) throws IOException {
+        // this can be extended to also provide json parameters back to the response object
+        // right now it's just a status confirmation
         JSONObject data = new JSONObject();
         try {
             data.put("status", "success");
@@ -90,9 +89,9 @@ public class Reports extends HttpServlet {
         response.getWriter().write(data.toString());
     }
 
-    public static void main(String[] args){
-
+    public static void main(String[] args) {
+        // nada
     }
-}
+} // we hope you have enjoyed this endpoint
 
 
