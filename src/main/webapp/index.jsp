@@ -16,96 +16,117 @@
 <body>
 <script>
 
-    $(document).ready(function() {
-        // test request report
-        // test emergency contact creation
-        const params_1 = {
-            tab_id: "0",
-            first_name: "Jason",
-            last_name: "Zhou",
-            gender: "wolfkin",
-            email: "jasonzhou3@gmail.com",
-            age: "30",
-            telephone: "928-777-8856",
-            blood_type: "AB",
-            longitude: "-87",
-            latitude: "33",
-            message: "request rescue!!!",
-            report_type: "REQUEST",
-            disaster_type: "WILDFIRE",
-            resource_type: "RESCUE/VOLUNTEER",
-            c_first_name: "Emergency",
-            c_last_name: "Contact",
-            c_email: "emergency3@contact.com",
-            c_telephone: "555-555-1234"
+    $(document).ready(function () {
+            // test request report
+            // test emergency contact creation
+            const params_1 = {
+                tab_id: "0",
+                first_name: "Jason",
+                last_name: "Zhou",
+                gender: "wolfkin",
+                email: "jasonzhou3@gmail.com",
+                age: "30",
+                telephone: "928-777-8856",
+                blood_type: "AB",
+                longitude: "-87",
+                latitude: "33",
+                message: "request rescue!!!",
+                report_type: "REQUEST",
+                disaster_type: "WILDFIRE",
+                resource_type: "RESCUE/VOLUNTEER",
+                c_first_name: "Emergency",
+                c_last_name: "Contact",
+                c_email: "emergency3@contact.com",
+                c_telephone: "555-555-1234"
+            }
+
+            // test damage report
+            // test no emergency contact
+            const params_2 = {
+                tab_id: "0",
+                first_name: "Wild",
+                last_name: "Bill",
+                gender: "Cowboy",
+                email: "wildbill@outwest.com",
+                age: "45",
+                telephone: "222-333-8856",
+                blood_type: "O",
+                longitude: "-179.88",
+                latitude: "88.77",
+                message: "this disaster sucks",
+                report_type: "DAMAGE",
+                disaster_type: "MATT_GAETZ",
+                damage_type: "POLLUTION"
+            }
+
+            // test donation report
+            // test emergency contact is an existing user
+            const params_3 = {
+                tab_id: "0",
+                first_name: "Milli",
+                last_name: "Vanilli",
+                gender: "Duo",
+                email: "milli3@vanilli.com",
+                age: "60",
+                telephone: "114-654-9938",
+                blood_type: "B",
+                longitude: "-2.88",
+                latitude: "-55.77",
+                message: "oh, how the mighty fall",
+                report_type: "DONATION",
+                disaster_type: "TORNADO",
+                resource_type: "WATER",
+                c_first_name: "Wild",
+                c_last_name: "Bill",
+                c_email: "wildbill@outwest.com",
+                c_telephone: "222-333-8856"
+            }
+
+            const params_4 = {
+                tab_id: 1
         }
 
-        $.ajax({
-            url: "Reports",
-            data: params_1,
-            type: "POST"
-        })
+            function insertTest() {
+                $.ajax({
+                    url: "Reports",
+                    data: params_1,
+                    type: "POST"
+                })
 
-        // test damage report
-        // test no emergency contact
-        const params_2 = {
-            tab_id: "0",
-            first_name: "Wild",
-            last_name: "Bill",
-            gender: "Cowboy",
-            email: "wildbill@outwest.com",
-            age: "45",
-            telephone: "222-333-8856",
-            blood_type: "O",
-            longitude: "-179.88",
-            latitude: "88.77",
-            message: "this disaster sucks",
-            report_type: "DAMAGE",
-            disaster_type: "MATT_GAETZ",
-            damage_type: "POLLUTION"
+                setTimeout(function () {
+                    $.ajax({
+                        url: "Reports",
+                        data: params_2,
+                        type: "POST"
+                    })
+                }, 3000)
+
+                setTimeout(function () {
+                    $.ajax({
+                        url: "Reports",
+                        data: params_3,
+                        type: "POST"
+                    })
+                }, 6000)
+            }
+
+            function queryAllTest(wait) {
+                var delay;
+                wait ? delay = 10000 : delay = 0;
+
+                setTimeout(function () {
+                    $.ajax({
+                        url: "Reports",
+                        data: params_4,
+                        type: "POST"
+                    })
+                }, delay);
+            }
+
+            insertTest();
+            queryAllTest(true);
         }
-
-        setTimeout(function() {
-            $.ajax({
-                url: "Reports",
-                data: params_2,
-                type: "POST"
-            })
-        }, 3000)
-
-        // test donation report
-        // test emergency contact is an existing user
-        const params_3 = {
-            tab_id: "0",
-            first_name: "Milli",
-            last_name: "Vanilli",
-            gender: "Duo",
-            email: "milli3@vanilli.com",
-            age: "60",
-            telephone: "114-654-9938",
-            blood_type: "B",
-            longitude: "-2.88",
-            latitude: "-55.77",
-            message: "oh, how the mighty fall",
-            report_type: "DONATION",
-            disaster_type: "TORNADO",
-            resource_type: "WATER",
-            c_first_name: "Wild",
-            c_last_name: "Bill",
-            c_email: "wildbill@outwest.com",
-            c_telephone: "222-333-8856"
-        }
-
-        setTimeout(function() {
-            $.ajax({
-                url: "Reports",
-                data: params_3,
-                type: "POST"
-            })
-        }, 6000)
-
-        // $.get("Reports")
-    });
+    );
 
 </script>
 <h1>test executed</h1>

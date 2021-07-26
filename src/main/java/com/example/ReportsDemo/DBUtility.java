@@ -59,7 +59,7 @@ public class DBUtility {
                 String timestamp = res.getTimestamp("timestamp").toString();
                 String geom = res.getString("geom");
 
-                String header = "********************\n";
+                String header = "**************************\n";
                 String body = String.format("ID: %d\n" +
                         "REPORT TYPE: %s\n" +
                         "DISASTER TYPE: %s]\n" +
@@ -203,6 +203,7 @@ public class DBUtility {
         PreparedStatement reportSQL = insertParams(params.get(1), rawReport, 1);  // has a geometry object
         context.log("PARAMETERS ADDED TO INSERT REPORT STATEMENT");
 
+        // EMERGENCY CONTACT HANDLING
         // we check if the data package contains an emergency contact id
         // we also check if the contact user already exist in the database, so that we don't violate unique constraints
 
@@ -247,10 +248,9 @@ public class DBUtility {
         statements.add(reportSQL);
         statements.add(getReportID);
 
+        // USER CREATION HANDLING
         // we're going to check if we need to create a user, or use an existing one.
-        // then we'll create the user (if needed), and create the report.
-        // once we create the report, we'll get its ID and use that to populate the reportType table,
-        // along with its secondary value (resource_type, disaster_type, etc. etc.) using linked table inheritance.
+        // then we'll create the user (if needed), or capture userID if not.
 
         try {
             ResultSet res = getUserID.executeQuery();  // check if user exists
@@ -274,21 +274,35 @@ public class DBUtility {
                     context.log("NEW USER CREATED SUCCESSFULLY");
                 }
             }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw e;
+        }
 
+        // REPORT CREATION HANDLING
+        // we're going to use the user's inputs to create the report
+        // once we create the report, we'll get its ID and use that to populate the reportType table,
+        // along with its secondary value (resource_type, disaster_type, etc. etc.) using linked table inheritance
+
+        try {
             context.log("CREATING REPORT");
             reportSQL.setInt(5, userID);  // set the userID in the report
             reportSQL.executeUpdate();  // execute create report statement
 
             getReportID.setInt(1, userID);  // we need to specify user ID in order to get the right reportID
-            res = getReportID.executeQuery();  // get the reportID we just created
+            ResultSet res = getReportID.executeQuery();  // get the reportID we just created
 
             if (res.next()) {  // set cursor
                 reportID = res.getInt("id");  // set the reportID
                 res.close();
                 context.log("REPORT CREATED SUCCESSFULLY");
             }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw e;
+        }
 
-            // we're going to handle the sub-report type (linked tables for disaster_report, etc.)
+        try {
             context.log("CREATING SUB-REPORT");
             String type = params.get(1).get("report_type");  // get the report type
             context.log("type " + type);
@@ -327,10 +341,6 @@ public class DBUtility {
             statements.add(reportTypeSQL);  // add it to the statements list
             context.log("SUB-REPORT CREATED SUCCESSFULLY");
 
-            for (PreparedStatement s : statements) {  // remember our statements list?  good times.
-                s.close(); // let's close all the statements!
-            }
-
             context.log("EXECUTION SUCCESSFUL");  // boom
 
         } catch (SQLException e) {
@@ -339,7 +349,14 @@ public class DBUtility {
             e.printStackTrace();
             throw e;
         } finally {
+            context.log("CLOSING STATEMENTS");
+            for (PreparedStatement s : statements) {  // remember our statements list?  good times.
+                s.close(); // let's close all the statements!
+            }
+            context.log("ALL STATEMENTS CLOSED SUCCESSFULLY");
+            context.log("CLOSING CONNECTION");
             conn.close();  // close the connection regardless of success or the db will cry
+            context.log("CONNECTION CLOSED SUCCESSFULLY");
         }
     }
 
@@ -353,7 +370,89 @@ public class DBUtility {
         return String.format("jdbc:%s://%s:%d/%s?stringtype=unspecified", driver, host, port, db);
     }
 
-    public static void queryReport(HttpServletRequest request, HttpServletResponse response) {
+    public static void queryReport(HttpServletRequest request, HttpServletResponse response) throws ClassNotFoundException, SQLException, IOException {
+
+        ServletContext context = request.getServletContext();
+        context.log("PRINTING REPORTS");
+
+        // initialize connection and add geometry type
+        context.log("INITIATING DB CONNECTION");
+        Connection conn = DBUtility.connect(DBUtility.url, request);
+        context.log("DB CONNECTION SUCCESSFUL");
+        ((org.postgresql.PGConnection) conn).addDataType("geometry", (Class<? extends PGobject>) Class.forName("org.postgis.PGgeometry"));
+
+        // prepare query statement
+        PreparedStatement getAllReports = conn.prepareStatement(Statements.get("getAllReports"));
+        try {
+            ResultSet res = getAllReports.executeQuery();  // execute statement
+            if (res.next()) { // move cursor to first result
+                String headerFooter = "************** REPORT %s **************";  // formatted later
+                int ALL_INTEGERS_REPORTED = 3;  // our megaquery returns the ID field a lot, we'll filter extraneous results out
+                int id_count = 0;  // above is the threshold, this is the counter
+                while ( res.next()) {  // for each result
+                    ResultSetMetaData meta = res.getMetaData();  // tells us some things that are good to know
+                    int size = meta.getColumnCount();  // like how many columns there are
+                    System.out.println(String.format(headerFooter, "START"));  // print header
+
+                    for (int i = 1; i < size; i++){  // for each column
+
+                        String col = meta.getColumnName(i);  // get name
+                        String type = meta.getColumnTypeName(i);  // data type will assist in string formatting...
+
+                        // we need to handle each data type to string conversion depending on its type
+                        // that typename thing sure comes in handy
+                        switch (type) {
+                            // all integers handled in this case clause
+                            case "bigserial":
+                            case "int8":
+                            case "int4":
+                                if (id_count <= ALL_INTEGERS_REPORTED) {  // only allows first 2 instances of ID & age to be displayed
+                                    int someInt = res.getInt(col);
+                                    switch (i) {
+                                        case 3:
+                                            col = "REPORT_ID";  // format report ID
+                                            break;
+                                        case 8: // we actually want user ID here but would otherwise get report ID
+                                            col = "\n-------------USER INFO------------\nUSER_ID";  // formats the printout with a linebreak
+                                            someInt = res.getInt("reported_by");  // substitute value
+                                            break;
+                                        default:
+                                            col = col.toUpperCase();  // no handling needed for age
+                                            break;
+                                    }
+                                    System.out.println(col + ": " + someInt);  // display the line
+                                    id_count++; // add to the id count in order to trigger threshold
+                                }
+                                break;
+                                // handling timestamp to string conversion
+                            case "timestamptz":
+                                Timestamp time = res.getTimestamp(col);
+                                System.out.println(col.toUpperCase() + ": " + time.toString());
+                                break;
+                                // handling geometry to string conversion
+                            case "geometry":
+                                PGgeometry geom = (PGgeometry) res.getObject(col);
+                                System.out.println("LOCATION: " + geom.toString());
+                                break;
+                            default:
+                                // if it's not one of the above, we just null check and format
+                                String someString = res.getString(col);
+                                if (someString != null) {
+                                    System.out.println(col.toUpperCase() + ": " + someString);
+                                }
+                                break;
+                        }
+                    } id_count = 0;  // reset counter for the next loop
+                    System.out.println(String.format(headerFooter + "\n\n\n", "END"));  // concat within a format clause?  now I've seen it all.
+                }
+            } else {
+                context.log("NULL QUERY RESULT DETECTED");  // failure message
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw e;
+        }
     }
 
 } // fin

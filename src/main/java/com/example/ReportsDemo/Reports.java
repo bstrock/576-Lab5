@@ -73,7 +73,11 @@ public class Reports extends HttpServlet {
             }
         } else if (tab_id.equals("1")) {
             context.log("QUERY SUBMITTED");
-            DBUtility.queryReport(request, response);  // TODO: MAKE THIS, WRAP IN TRY/CATCH
+            try {
+                DBUtility.queryReport(request, response);  // TODO: MAKE THIS, WRAP IN TRY/CATCH
+            } catch (ClassNotFoundException | SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
 
