@@ -66,15 +66,21 @@ public class Reports extends HttpServlet {
                 DBUtility.createReport(request);
                 confirmSuccess(response);
                 context.log("ATTEMPTING TO SERVICE REQUEST SUCCESSFUL");
-
             } catch (SQLException | ClassNotFoundException e) {
                 e.printStackTrace();
                 context.log("REQUEST SERVICE FAILED");
             }
-        } else if (tab_id.equals("1")) {
+        } else if (type == 1) {
             context.log("QUERY SUBMITTED");
             try {
-                DBUtility.queryReport(request, response);  // TODO: MAKE THIS, WRAP IN TRY/CATCH
+                DBUtility.queryReport(request, response);
+            } catch (SQLException | ClassNotFoundException | JSONException e) {
+                e.printStackTrace();
+            }
+        }else if (type == 2) {
+            context.log("QUERY ALL SUBMITTED");
+            try {
+                DBUtility.queryAllReports(request, response);  // TODO: MAKE THIS, WRAP IN TRY/CATCH
             } catch (ClassNotFoundException | SQLException e) {
                 e.printStackTrace();
             }

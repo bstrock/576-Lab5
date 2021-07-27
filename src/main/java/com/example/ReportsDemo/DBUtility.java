@@ -1,13 +1,17 @@
 package com.example.ReportsDemo;
 
+import javax.json.JsonValue;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
 import java.sql.*;
 import java.util.*;
 
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.postgis.Geometry;
 import org.postgis.PGgeometry;
 import org.postgresql.util.PGobject;
@@ -37,8 +41,9 @@ public class DBUtility {
 
             final Properties connProps = new Properties();  // initialize object for user/pass
             connProps.load(in);  // load user/pass from properties input stream
-
-            return DriverManager.getConnection(url, connProps);
+            Connection conn = DriverManager.getConnection(url, connProps);
+            ((org.postgresql.PGConnection) conn).addDataType("geometry", (Class<? extends PGobject>) Class.forName("org.postgis.PGgeometry"));
+            return conn;
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -95,16 +100,12 @@ public class DBUtility {
 
                 if (i < USER_CUTOFF) {  // goes in the user table map
                     userTable.put(key, val);
-                    context.log(key + val);
                 } else if (i < REPORT_CUTOFF) { // only triggers if i > user_cutoff
                     reportTable.put(key, val);
-                    context.log(key + val);
                 } else if (i < CONTACT_CUTOFF) {
                     subReportTable.put(key, val); // only triggers if i < contact_cutoff
-                    context.log(key + val);
                 } else {
                     emergencyContact.put(key.replace("c_", ""), val); // this must be emergency contact
-                    context.log(key + val);
 
                 }
             }
@@ -120,7 +121,6 @@ public class DBUtility {
         if (i > CONTACT_CUTOFF) {
             insertAttributes.add(emergencyContact);
         }
-
 
 
         return insertAttributes;
@@ -172,7 +172,7 @@ public class DBUtility {
         context.log("INITIATING DB CONNECTION");
         Connection conn = DBUtility.connect(DBUtility.url, request);
         context.log("DB CONNECTION SUCCESSFUL");
-        ((org.postgresql.PGConnection) conn).addDataType("geometry", (Class<? extends PGobject>) Class.forName("org.postgis.PGgeometry"));
+        //((org.postgresql.PGConnection) conn).addDataType("geometry", (Class<? extends PGobject>) Class.forName("org.postgis.PGgeometry"));
         context.log("UNPACKING PARAMETERS");
         ArrayList<LinkedHashMap<String, String>> params = requestParamsToArrayList(request);  // the parameters are accessed from here
         context.log("PARAMETERS UNPACK SUCCESSFUL");
@@ -370,7 +370,69 @@ public class DBUtility {
         return String.format("jdbc:%s://%s:%d/%s?stringtype=unspecified", driver, host, port, db);
     }
 
-    public static void queryReport(HttpServletRequest request, HttpServletResponse response) throws ClassNotFoundException, SQLException, IOException {
+    public static void queryReport(HttpServletRequest request, HttpServletResponse response) throws SQLException, IOException, ClassNotFoundException, JSONException {
+        // configure connection and unpack parameters
+        ServletContext context = request.getServletContext();
+        Connection conn = DBUtility.connect(DBUtility.url, request);
+        ArrayList<LinkedHashMap<String, String>> params = requestParamsToArrayList(request);  // the parameters are accessed from here
+        LinkedHashMap<String, String> queryParams = params.get(0);  // we just need the one
+        String reportTypeTableName = null, reportType = null;
+
+        int counter = 0;
+
+        // we're going to loop through the query parameter keys to get the linked tablename and associated column name
+        for (String key : queryParams.keySet()) {
+            switch (counter) {
+                case 0:
+                    counter++;
+                    break;
+                case 1:
+                    reportTypeTableName = queryParams.get(key).toLowerCase() + "_report";
+                    counter++;
+                    break;
+                case 2:
+                    reportType = key;
+            }
+        }
+        JSONObject returnParams = new JSONObject();
+        // get the query SQL and prepare statement
+        String raw = String.format(Statements.get("queryReports"), reportTypeTableName, reportType);
+        PreparedStatement queryPrepared = conn.prepareStatement(raw);
+        // insert parameters into query statement
+        PreparedStatement querySQL = insertParams(queryParams, queryPrepared, 0);
+        // run statement
+        ResultSet res = querySQL.executeQuery();
+        if (res.next()) { // move cursor to first result
+            counter = 1;
+            while (res.next()) {  // for each result
+                ResultSetMetaData meta = res.getMetaData();  // highly useful
+                LinkedHashMap<String, String> row = new LinkedHashMap<>();  // stores values for this result row
+                for (int i = 1; i < meta.getColumnCount(); i++) {  // loop through columns
+
+                    String col = meta.getColumnName(i);  // get column name
+                    String val;
+                    if (meta.getColumnTypeName(i).equals("geometry")) {  // handling geometry column
+                        PGgeometry geom = (PGgeometry) res.getObject(col);  // it's a geometry object
+                        val = geom.toString();
+                    } else {
+                        val = res.getString(col);  // everything else is a string
+                    }
+                    row.put(col, val);  // add to the row
+                    System.out.println(col.toUpperCase() + ": " + val);
+                }
+                returnParams.put(String.valueOf(counter), row);  // row captured- add to json
+                counter++;  // next one!
+            }
+        }
+        // add to JSON, set headers and fire away
+        PrintWriter out = response.getWriter();
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        out.print(returnParams);
+        out.flush();  // bye bye json!
+    }
+
+    public static void queryAllReports(HttpServletRequest request, HttpServletResponse response) throws ClassNotFoundException, SQLException, IOException {
 
         ServletContext context = request.getServletContext();
         context.log("PRINTING REPORTS");
@@ -379,7 +441,7 @@ public class DBUtility {
         context.log("INITIATING DB CONNECTION");
         Connection conn = DBUtility.connect(DBUtility.url, request);
         context.log("DB CONNECTION SUCCESSFUL");
-        ((org.postgresql.PGConnection) conn).addDataType("geometry", (Class<? extends PGobject>) Class.forName("org.postgis.PGgeometry"));
+        //((org.postgresql.PGConnection) conn).addDataType("geometry", (Class<? extends PGobject>) Class.forName("org.postgis.PGgeometry"));
 
         // prepare query statement
         PreparedStatement getAllReports = conn.prepareStatement(Statements.get("getAllReports"));
@@ -389,16 +451,14 @@ public class DBUtility {
                 String headerFooter = "************** REPORT %s **************";  // formatted later
                 int ALL_INTEGERS_REPORTED = 3;  // our megaquery returns the ID field a lot, we'll filter extraneous results out
                 int id_count = 0;  // above is the threshold, this is the counter
-                while ( res.next()) {  // for each result
+                while (res.next()) {  // for each result
                     ResultSetMetaData meta = res.getMetaData();  // tells us some things that are good to know
                     int size = meta.getColumnCount();  // like how many columns there are
                     System.out.println(String.format(headerFooter, "START"));  // print header
 
-                    for (int i = 1; i < size; i++){  // for each column
-
+                    for (int i = 1; i < size; i++) {  // for each column
                         String col = meta.getColumnName(i);  // get name
                         String type = meta.getColumnTypeName(i);  // data type will assist in string formatting...
-
                         // we need to handle each data type to string conversion depending on its type
                         // that typename thing sure comes in handy
                         switch (type) {
@@ -424,12 +484,12 @@ public class DBUtility {
                                     id_count++; // add to the id count in order to trigger threshold
                                 }
                                 break;
-                                // handling timestamp to string conversion
+                            // handling timestamp to string conversion
                             case "timestamptz":
                                 Timestamp time = res.getTimestamp(col);
                                 System.out.println(col.toUpperCase() + ": " + time.toString());
                                 break;
-                                // handling geometry to string conversion
+                            // handling geometry to string conversion
                             case "geometry":
                                 PGgeometry geom = (PGgeometry) res.getObject(col);
                                 System.out.println("LOCATION: " + geom.toString());
@@ -442,7 +502,8 @@ public class DBUtility {
                                 }
                                 break;
                         }
-                    } id_count = 0;  // reset counter for the next loop
+                    }
+                    id_count = 0;  // reset counter for the next loop
                     System.out.println(String.format(headerFooter + "\n\n\n", "END"));  // concat within a format clause?  now I've seen it all.
                 }
             } else {

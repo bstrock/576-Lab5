@@ -11,6 +11,7 @@ public class Statements {
     private static final String getReport = "SELECT id, (SELECT MAX(timestamp)) FROM report WHERE reported_by = ? GROUP BY report.id ORDER BY timestamp DESC LIMIT 1";
     private static final String makeReportType = "INSERT INTO %s (id, %s) VALUES (?, ?)";
     private static final String makeContact = "INSERT INTO users (first_name, last_name, email, telephone) VALUES (?, ?, ?, ?)";
+    private static final String queryReports = "SELECT * FROM report AS r INNER JOIN %s AS t ON r.id = t.id WHERE r.disaster_type = ? AND r.report_type = ? AND t.%s = ?";
     private static final String getAllReports = "SELECT * FROM report\n" +
             "FULL OUTER JOIN users\n" +
             "ON users.id = report.reported_by\n" +
@@ -45,6 +46,9 @@ public class Statements {
                 break;
             case "makeContact":
                 statement = makeContact;
+                break;
+            case "queryReports":
+                statement = queryReports;
                 break;
             case "getAllReports":
                 statement = getAllReports;

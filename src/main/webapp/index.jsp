@@ -74,8 +74,8 @@
                 latitude: "-55.77",
                 message: "oh, how the mighty fall",
                 report_type: "DONATION",
-                disaster_type: "TORNADO",
-                resource_type: "WATER",
+                disaster_type: "HURRICANE",
+                resource_type: "FOOD",
                 c_first_name: "Wild",
                 c_last_name: "Bill",
                 c_email: "wildbill@outwest.com",
@@ -83,7 +83,14 @@
             }
 
             const params_4 = {
-                tab_id: 1
+                tab_id: 1,
+                disaster_type: "HURRICANE",
+                report_type: "DONATION",
+                resource_type: "FOOD"
+            }
+
+            const params_5 = {
+                tab_id: 2
         }
 
             function insertTest() {
@@ -118,13 +125,18 @@
                     $.ajax({
                         url: "Reports",
                         data: params_4,
-                        type: "POST"
+                        type: "POST",
+                        success: function(data){
+                            for (let key in data) {
+                                console.log(key, data[key])
+                            }
+                        }
                     })
                 }, delay);
             }
 
-            insertTest();
-            queryAllTest(true);
+            //insertTest();
+            queryAllTest(false);
         }
     );
 
