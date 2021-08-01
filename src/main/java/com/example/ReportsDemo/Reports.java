@@ -103,5 +103,3 @@ public class Reports extends HttpServlet {
         // nada
     }
 } // we hope you have enjoyed this endpoint
-
-

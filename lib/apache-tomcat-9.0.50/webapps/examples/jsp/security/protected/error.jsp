@@ -20,6 +20,6 @@
 </head>
 <body bgcolor="white">
 Invalid user name and/or password, please try
-<a href='<%= response.encodeURL(application.getContextPath() + "/jsp/security/protected/index.jsp") %>'>again</a>.
+<a href='<%= response.encodeURL(application.getContextPath() + "/jsp/security/protected/test_db.jsp") %>'>again</a>.
 </body>
 </html>
