@@ -3,15 +3,16 @@ This is a fully functional full-stack web app designed to allow for reporting of
 
 <h2>Tech Stack</h2>
 
-* Javascript
-* JQuery
-* Leaflet.js
-* Mapbox Studio
+* Java/JavaEE
+* HTTPServlet
+* Apache Tomcat
+* JDBC
+* Java PostGIS and GeoJSON packages
 * HTML5
 * CSS
 * Bootstrap
-* GeoJSON
-* spinner.js
+* Javascript
+* JQuery
 
 <h2>Project Features</h2>
 
