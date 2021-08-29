@@ -33,3 +33,4 @@ In rewriting the application as designed for lab, I was able to provide some fun
 * Offers users a Query tab to allow filtering the underlying database
 * Offers users an intake form to allow for user report submissions
 * Successful submission will zoom to report location and display map pin for the report
+* Seperate test script to assist with debugging and refactoring
