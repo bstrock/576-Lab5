@@ -1,7 +1,5 @@
 <h1>Java Servlet Example: Disaster Management System</h1>
-This is a fully functional full-stack web app designed to allow for reporting of disasters and requests related to disaster recovery, written for a class in Geospatial Web and Mobile Programming.  The lab assignment was designed to provide a basic overview of Java class/project structure, Servlets, Apache Tomcat, JSP, and JDBC.<br><br>
-
-In rewriting the application as designed for lab, I was able to provide some functional improvements over the existing codebase by using Prepared Statements instead of raw SQL exectution, and made the codebase more programmatic by using database metadata objects to perform CRUD operations instead of relying on explicating each parameter for every database interaction.  I also improved geospatial data handling by integrating PostGIS geometry objects directly with the servlet architecture, rather than relying on SQL strings to generate PostGIS objects at the DDL level.
+This is a fully functional full-stack web app designed to allow for reporting of disasters and requests related to disaster recovery, written for a class in Geospatial Web and Mobile Programming.  The lab assignment was designed to provide a basic overview of Java class/project structure, Servlets, Apache Tomcat, JSP, and JDBC.  I completed the assignment by rewriting the application in order to improve the security implementation and provide for a more flexible codebase.<br><br>
 
 <h2>Tech Stack</h2>
 
