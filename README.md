@@ -3,9 +3,17 @@ This is a functional rewrite of a lab assignment for Geospatial Web and Mobile P
 
 In rewriting the application as designed for lab, I was able to provide some functional improvements over the existing codebase by using Prepared Statements instead of raw SQL exectution, and made the codebase more programmatic by using database metadata objects to perform CRUD operations instead of relying on explicating each parameter for every database interaction.  I also improved geospatial data handling by integrating PostGIS geometry objects directly with the servlet architecture, rather than relying on SQL strings to generate PostGIS objects at the DDL level.
 
-<h2>Link to project page</h2>
+<h2>Tech Stack</h2>
 
-[View the project here](https://bstrock.github.io/)
+* Javascript
+* JQuery
+* Leaflet.js
+* Mapbox Studio
+* HTML5
+* CSS
+* Bootstrap
+* GeoJSON
+* spinner.js
 
 <h2>Project Features</h2>
 
@@ -22,15 +30,3 @@ In rewriting the application as designed for lab, I was able to provide some fun
 * Custom Mapbox tileset used to enhance visual contrast of presentation
 * Custom graphics and design elements (website background, etc.)
 * Full academic attributions are included
-
-<h2>Tech Stack</h2>
-
-* Javascript
-* JQuery
-* Leaflet.js
-* Mapbox Studio
-* HTML5
-* CSS
-* Bootstrap
-* GeoJSON
-* spinner.js
