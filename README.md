@@ -16,7 +16,9 @@ In rewriting the application as designed for lab, I was able to provide some fun
 * spinner.js
 
 <h2>Project Features</h2>
+
 **Back end:**
+
 * Java HTTPServlet provides API interface between frontend JSP and database using JDBC
 * Business logic utilizes Prepared Statements instead of raw SQL exectution
 * Programmatic approach to database operations by using metadata objects to perform CRUD operations using type inference
@@ -24,6 +26,7 @@ In rewriting the application as designed for lab, I was able to provide some fun
 * Commenting and logging throughout provides clarity and informs efficient debugging
 
 **Front end:**
+
 * Web interface initializes with a map of all reports currently active in the database
 * Uses Google Maps API to provide basemap, POI interface, and address autocompletion
 * User-submitted reports represented by map pins with callouts containing detailed report information
