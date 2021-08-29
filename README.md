@@ -8,6 +8,7 @@ This is a fully functional full-stack web app designed to allow for reporting of
 * Apache Tomcat
 * JDBC
 * Java PostGIS and GeoJSON packages
+* Maven
 * HTML5
 * CSS
 * Bootstrap
