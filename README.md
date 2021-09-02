@@ -37,50 +37,95 @@ This is a fully functional full-stack web app designed to allow for reporting of
 
 <h2>Project Structure and Contents</h2>
 ```ReportsDemo/
+
 ├── pom.xml
+
 ├── heroku.yml
+
 ├── Procfile
+
 ├── requirements.txt
+
 ├── lib/
+
 │       ├── java-json.jar
+
 │       ├── log4j-api-2.14.1.jar
+
 │       ├── postgis-1.5.2.jar
+
 │       ├── postgis-jdbc-2.5.0.jar
-│       ├── postgresql-42.2.23.jar
-│       └── schema.py
+
+│       └── postgresql-42.2.23.jar
+
 └── src/
+
         ├── db.properties
+	
         └── main/
+	
 		├── java/
+		
 		│	└── com/
+		
 		│		└── example/
+		
 		│		          └── ReportsDemo/
+		
 		│					├── DBUtility.java
+		
 		│		                 	├── Reports.java
+		
 		│					└── Statements.java
+		
 		├── resources/
+		
 		│	     └── META-INF/
+		
 		│			├── beans.xml
+		
 		│			└── persistence.xml
+		
 		└───── webapp/
+		
 			     ├── index.jsp
+			     
 			     ├── test_db.jsp
+			     
 			     │
+			     
 			     ├────── css/
+			     
 			     │		└── style.css					
+			     
 			     ├─────── js/
+			     
 			     │		├── loadform.js
+			     
 			     │		└── loadmap.js
+			     
 			     ├────── img/		
+			     
 			     │   	├── damage.png
+			     
 			     │   	├── donation.png
+			     
 			     │		└── request.png
+			     
 			     ├─ META-INF/
+			     
 			     └── WEB-INF/
+			     
 					├── db.properties
+					
 					├── web.xml
+					
 					├── request.png
+					
 			     		└── lib/
+					
 			                	        ├── json-20210307.jar
+							
 				 	        ├── postgis-1.5.2.jar
+						
 				 	        └── postgresql-42.2.23.jar```
